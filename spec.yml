@@ -1,0 +1,377 @@
+swagger: "2.0"
+info:
+  version: 1.0.0
+  title: Petstore
+  license:
+    name: MIT
+host: pets.com:8888
+basePath: /api
+definitions:
+  Status:
+    type: object
+    properties:
+      status:
+        type: string
+  Tag:
+    properties:
+      name:
+        type: string
+      id:
+        type: integer
+    type: object
+  RecursiveContainer:
+    type: object
+    properties:
+      object:
+        $ref: '#/definitions/RecursiveObject'
+  RecursiveObject:
+    type: object
+    properties:
+      id:
+        type: string
+      next:
+        $ref: '#/definitions/RecursiveObject'
+      children:
+        type: array
+        items:
+          $ref: '#/definitions/RecursiveObject'
+      any: {}
+  TestEnum:
+    enum: [true, 1.5, 23, 964, -79.23, 14343, -964, "hello", "foo", "bar"]
+  Order:
+    type: object
+    properties:
+      id:
+        type: integer
+      list:
+        type: array
+        items:
+          type: object
+          properties:
+            petId:
+              type: integer
+            quantity:
+              type: integer
+      status:
+        type: string
+        enum: ["paymentPending", "orderPlaced", "shipped", "fulfilled"]
+      test-string-enum:
+        type: string
+        enum: ["booya", 72.9, true, -53]
+      address:
+        type: object
+        properties:
+          name:
+            type: string
+          line1:
+            type: string
+          line2:
+            type: string
+          code:
+            type: string
+  Pet:
+    description: A pet is a person's best friend
+    required:
+    - id
+    - name
+    additionalProperties: true
+    properties:
+      id:
+        type: integer
+      tags:
+        type: array
+        items:
+          $ref: '#/definitions/Tag'
+      name:
+        type: string
+      category:
+        $ref: '#/definitions/Category'
+      photoUrls:
+        type: array
+        items:
+          type: string
+    type: object
+  Category:
+    properties:
+      name:
+        type: string
+      id:
+        type: integer
+        format: int64
+    type: object
+  TestNestedArrayWithObject:
+    type: array
+    items:
+      type: array
+      items:
+        type: object
+        properties:
+          foo:
+            type: string
+          bar:
+            type: object
+            properties:
+              baz:
+                type: integer
+parameters:
+  petID:
+    name: petId
+    in: path
+    required: true
+    type: integer
+    description: ID of the pet.
+responses:
+  StatusResponse:
+    schema:
+      $ref: '#/definitions/Status'
+  RecursiveContainer:
+    schema:
+      $ref: '#/definitions/RecursiveContainer'
+paths:
+  /pets/{petId}:
+    parameters:
+    - $ref: '#/parameters/petID'
+    get:
+      description: Find pet by ID
+      operationId: getPetById
+      responses:
+        "200":
+          schema:
+            $ref: '#/definitions/Pet'
+    delete:
+      description: Delete multiple pets
+      operationID: deletePetBatch
+      responses:
+        '200':
+          $ref: '#/responses/StatusResponse'
+      parameters:
+      - name: petId
+        in: path
+        required: true
+        type: array
+        # CSV default
+        items:
+          type: integer
+  /pets:
+    get:
+      description: Fetch list of pets
+      operationId: listPets
+      responses:
+        "200":
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Pet'
+    post:
+      description: Add a new pet to the store
+      operationId: addPet
+      parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/Pet'
+      - in: formData # will be ignored because we already have body
+        name: foobar
+        type: string
+        required: true
+      - in: header
+        name: X-Auth
+        required: true
+        type: string
+      - in: header
+        name: X-Pet-ID
+        type: integer
+      responses:
+        "200":
+          headers:
+            X-Rate-Limit:
+              description: Maximum allowed requests in the current period
+              type: integer
+            X-Rate-Limit-Remaining:
+              description: Remaining requests in the current period
+              type: integer
+            X-Rate-Limit-Reset:
+              description: Time at which rate limit is reset (in UNIX epoch)
+              type: integer
+            X-Rate-Limit-Exceeded:
+              description: Whether the requests have exceeded for this window.
+              type: boolean
+            X-unknown: {} # will be skipped
+            X-string:
+              type: string
+            X-array:
+              type: array
+              collectionFormat: pipes
+              items:
+                type: array
+                collectionFormat: multi # will get replaced to "csv"
+                items:
+                  type: array
+                  collectionFormat: tsv
+                  items:
+                    type: array
+                    collectionFormat: ssv
+                    items:
+                      type: number
+          schema:
+            $ref: '#/definitions/Pet'
+  /shipments:
+    post:
+      description: Create shipment for order
+      operationID: createShipment
+      deprecated: true
+      parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            orderId:
+              type: string
+            address:
+              type: object
+              properties:
+                name:
+                  type: string
+                line1:
+                  type: string
+                line2:
+                  type: string
+                code:
+                  type: string
+      responses: {}
+  /shipments/{id}:
+    get:
+      description: Fetch shipment by ID
+      operationId: getShipment
+      parameters:
+      - in: path
+        name: id
+        type: string
+        required: true
+      responses:
+        "200":
+          schema:
+            type: object
+            properties:
+              orderId:
+                type: string
+              shippedOn:
+                type: string
+              createdOn:
+                type: string
+              address:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  line1:
+                    type: string
+                  line2:
+                    type: string
+                  code:
+                    type: string
+  /test/parameter/{values}:
+    post:
+      parameters:
+      - in: path
+        name: values
+        type: array
+        required: true
+        collectionFormat: tsv
+        items:
+          type: array
+          collectionFormat: ssv
+          items:
+            type: array
+            # Default CSV
+            items:
+              type: array
+              collectionFormat: pipes
+              items:
+                type: string
+      - in: header
+        name: X-foobar
+        type: array
+        collectionFormat: pipes
+        items:
+          type: array
+          collectionFormat: multi # will get replaced to "csv"
+          items:
+            type: array
+            collectionFormat: tsv
+            items:
+              type: array
+              collectionFormat: ssv
+              items:
+                type: number
+      - in: formData
+        name: booya
+        type: array
+        collectionFormat: multi
+        items:
+          type: array
+          collectionFormat: multi # defaults to CSV, because we can't encode nested values.
+          items:
+            type: integer
+      - in: query
+        name: foo
+        type: array
+        collectionFormat: multi
+        items:
+          type: array
+          collectionFormat: multi # defaults to CSV, because we can't encode nested values.
+          items:
+            type: string
+      responses:
+        "200":
+          schema:
+            type: string
+  /test/array:
+    get:
+      responses:
+        '200':
+          schema:
+            $ref: '#/definitions/TestNestedArrayWithObject'
+  /test/file:
+    get:
+      responses:
+        '200':
+          schema:
+            type: file
+    put:
+      parameters:
+      - name: someDataFile
+        in: formData
+        required: true
+        type: file
+      - name: someOtherFile
+        in: formData
+        type: file
+      - name: foobar
+        in: formData
+        type: string
+        required: true
+      - in: formData
+        name: booya
+        type: array
+        collectionFormat: multi
+        items:
+          type: array
+          items:
+            type: integer
+      responses:
+        '200':
+          $ref: '#/responses/StatusResponse'
+  /route/referring/recursive/object:
+    post:
+      responses:
+        '200':
+          $ref: '#/responses/RecursiveContainer'
+  /another/route/referring/recursive/object:
+    get:
+      responses:
+        '200':
+          $ref: '#/responses/RecursiveContainer'
